@@ -63,5 +63,5 @@ def diagnostico_dados_iniciais(df: pd.DataFrame, n=20, salvar_em_txt=True):
             f.write("\n".join(relatorio))
 
 if __name__ == "__main__":
-    df_limpo= pd.read_csv('/content/Piloto_day_trade/data/transformed/dados_transformados_BBDC4.csv', parse_dates=['datetime'])
+    df_limpo= pd.read_csv('/content/pregao_predict/data/transformed/dados_transformados_BBDC4.csv', parse_dates=['datetime'])
     diagnostico_dados_iniciais(df_limpo)

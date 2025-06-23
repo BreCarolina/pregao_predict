@@ -51,7 +51,7 @@ def main(ticker: str, path_projeto: str, intervalo: str) -> None:
 if __name__ == "__main__":
     # Define as variáveis para a execução do pipeline
     ticker = 'BBDC4.SA'
-    path_projeto = '/content/Piloto_day_trade'
+    path_projeto = '/content/pregao_predict'
     intervalo = '5m'
 
     # Chama a função principal do pipeline

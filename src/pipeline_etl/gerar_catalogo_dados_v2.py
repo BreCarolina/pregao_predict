@@ -207,4 +207,4 @@ def gerar_catalogo_dados(ticker: str, path_projeto: str):
             print("[✓] Conexão com o banco de dados fechada.")
 
 if __name__ == "__main__":
-    gerar_catalogo_dados('BBDC4', '/content/Piloto_day_trade')
+    gerar_catalogo_dados('BBDC4', '/content/pregao_predict')

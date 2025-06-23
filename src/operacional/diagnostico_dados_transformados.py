@@ -134,7 +134,7 @@ def diagnostico_dados(df: pd.DataFrame, pasta_relatorios: str = "reports") -> di
     return resultados
 
 if __name__ == "__main__":
-    path_dados_transformados = '/content/Piloto_day_trade/data/transformed/dados_transformados_BBDC4.csv'
+    path_dados_transformados = '/content/pregao_predict/data/transformed/dados_transformados_BBDC4.csv'
     df = pd.read_csv(path_dados_transformados, parse_dates=['datetime'])
     diagnostico_dados(df)
 

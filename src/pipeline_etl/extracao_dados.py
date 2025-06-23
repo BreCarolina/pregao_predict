@@ -162,5 +162,5 @@ def extrair_dados(ticker, intervalo, path_projeto, dias_janela=58):
 if __name__ == "__main__":
     ticker = 'BBDC4.SA'
     intervalo = '5m'
-    path_projeto = "/content/Piloto_day_trade"
+    path_projeto = "/content/pregao_predict"
     df_total_limpo = extrair_dados(ticker, intervalo, path_projeto)

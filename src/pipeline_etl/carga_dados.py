@@ -206,4 +206,4 @@ def carregar_dados(ticker: str, path_projeto: str) -> None:
 
 # Execução direta poara testes
 if __name__ == "__main__":
-    carregar_dados('LREN3', '/content/Piloto_day_trade')
+    carregar_dados('LREN3', '/content/pregao_predict')

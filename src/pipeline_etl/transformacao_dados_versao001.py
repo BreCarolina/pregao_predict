@@ -324,6 +324,6 @@ def transformar_dados(ticker: str, path_projeto: str) -> None:
 
 if __name__ == "__main__":
     ticker = 'BBDC4.SA'
-    path_projeto = "/content/Piloto_day_trade"
+    path_projeto = "/content/pregao_predict"
     transformar_dados(ticker, path_projeto)
 
