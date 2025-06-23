@@ -1,0 +1,20 @@
+{
+    "ticker": "BBDC4",
+    "versao_modelo": "v1",
+    "versao_dados": "v001",
+    "mae": 0.3407728970050812,
+    "mse": 0.16807565093040466,
+    "r2": -0.3061021566390991,
+    "epocas_executadas": 75,
+    "loss_final_treino": 0.0017677025170996785,
+    "loss_final_val": 0.0047396463342010975,
+    "layers": [
+        "InputLayer",
+        "LSTM",
+        "Dropout",
+        "LSTM",
+        "Dropout",
+        "Dense"
+    ],
+    "path_modelo": "/content/pregao_predict/models/LSTM/BBDC4/modelo_lstm_v1/modelo_lstm_v1.h5"
+}

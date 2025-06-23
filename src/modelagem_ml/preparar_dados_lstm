@@ -1,0 +1,159 @@
+
+#@title --- Preparar dados modelo LSTM ---
+
+# Importa bibliotecas
+import os
+import pandas as pd
+import numpy as np
+import joblib
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
+
+
+def normalizar_padronizar_dados(ticker, path_dados_transformados, path_scalers, path_dados_normalizados):
+    df = pd.read_csv(path_dados_transformados)
+
+    # Ordena corretamente por data e hora
+    df = df.sort_values(by=['data', 'hora']).reset_index(drop=True)  
+
+    # Seleciona as colunas para o modelo
+    df = df[['data', 'hora', 'dia_semana', 'abertura_candle', 'min_candle', 'max_candle',
+             'fechamento_candle', 'volume_candle', 'RSI', 'EMA_20', 'retorno', 'hora_num', 'minuto']]
+
+    # Aplica one-hot encoding na coluna de dia da semana para representar dias como variáveis binárias
+    df = pd.get_dummies(df, columns=['dia_semana'], prefix='dia_semana')
+
+    # Define colunas a serem normalizadas (MinMaxScaler) e padronizadas (StandardScaler)
+    colunas_normalizar = ['abertura_candle', 'min_candle', 'max_candle', 'fechamento_candle', 'volume_candle']
+    colunas_padronizar = ['RSI', 'EMA_20', 'retorno', 'hora_num', 'minuto']
+
+    # Verifica se todas as colunas são numéricas
+    for col in colunas_normalizar + colunas_padronizar:
+        if not pd.api.types.is_numeric_dtype(df[col]):
+            raise ValueError(f"Coluna {col} não é numérica.")
+
+    # Aplica normalização nas colunas definidas
+    minmax_scaler = MinMaxScaler()
+    df[colunas_normalizar] = minmax_scaler.fit_transform(df[colunas_normalizar])
+
+    # Aplica padronização nas colunas restantes
+    standard_scaler = StandardScaler()
+    df[colunas_padronizar] = standard_scaler.fit_transform(df[colunas_padronizar])
+
+    # Salva os scalers treinados
+    os.makedirs(path_scalers, exist_ok=True)
+    joblib.dump(minmax_scaler, os.path.join(path_scalers, 'minmax_scaler.pkl'))
+    joblib.dump(standard_scaler, os.path.join(path_scalers, 'standard_scaler.pkl'))
+
+    scalers_info = {
+        'colunas_normalizadas': colunas_normalizar,
+        'colunas_padronizadas': colunas_padronizar,
+        'colunas_one_hot': [col for col in df.columns if col.startswith('dia_semana_')]
+    }
+    joblib.dump(scalers_info, os.path.join(path_scalers, 'scalers_info.pkl'))
+
+    # Salva os dados normalizados em CSV
+    os.makedirs(path_dados_normalizados, exist_ok=True)
+    df.to_csv(os.path.join(path_dados_normalizados, 'dados_normalizados.csv'), index=False)
+    return df
+
+
+# Função que cria as sequências de entrada (X) e alvo (y) para o modelo LSTM
+# Considera dois dias como entrada e um dia como saída (completo de 82 candles)
+
+def criar_sequencias(df, obs_dia, target_col, colunas_extra, path_sequencias):
+    X, y, extras = [], [], []  # Listas para armazenar entradas, alvos e dados auxiliares
+    seq_len = 2 * obs_dia  # Número total de observações de entrada (2 dias)
+    n_alvos =  obs_dia   # Número de observações alvo (1 dia)
+
+    # Loop para gerar todas as janelas válidas
+    for i in range(len(df) - seq_len - n_alvos + 1):
+        seq = df.iloc[i : i + seq_len]  # Entrada
+        alvo = df.iloc[i + seq_len : i + seq_len + n_alvos]  # Saída
+
+        datas_alvo = alvo['data'].unique()  # Verifica se o alvo pertence a um único pregão
+        if len(datas_alvo) != 1:
+            continue
+
+        seq_x = seq.drop(columns=['data', 'hora'] + colunas_extra).values.astype(np.float32)  # Remove colunas extras
+        seq_y = alvo[target_col].values.astype(np.float32)  # Extrai valores do alvo
+        X.append(seq_x)
+        y.append(seq_y)
+        extras.append(alvo.iloc[0][colunas_extra].values)  # Armazena info extra do primeiro candle do alvo
+
+    # Converte listas para arrays e salva em arquivos .npy
+    X = np.array(X, dtype=np.float32)
+    y = np.array(y, dtype=np.float32)
+    extras = np.array(extras, dtype=object)
+
+    os.makedirs(path_sequencias, exist_ok=True)
+    np.save(os.path.join(path_sequencias, 'X.npy'), X)
+    np.save(os.path.join(path_sequencias, 'y.npy'), y)
+    np.save(os.path.join(path_sequencias, 'extras.npy'), extras)
+
+    return X, y, extras
+
+# Função que divide os dados em conjuntos de treino, validação e teste conforme proporções definidas
+# E salva cada subconjunto em arquivos distintos para uso posterior
+
+def dividir_dados(X, y, extras, path_treino_teste_val, proporcao_treino=0.7, proporcao_val=0.15):
+    n = len(X)
+    n_treino = int(n * proporcao_treino)
+    n_val = int(n * proporcao_val)
+
+    X_treino, y_treino, extras_treino = X[:n_treino], y[:n_treino], extras[:n_treino]
+    X_val, y_val, extras_val = X[n_treino:n_treino + n_val], y[n_treino:n_treino + n_val], extras[n_treino:n_treino + n_val]
+    X_teste, y_teste, extras_teste = X[n_treino + n_val:], y[n_treino + n_val:], extras[n_treino + n_val:]
+
+    os.makedirs(path_treino_teste_val, exist_ok=True)
+    np.save(os.path.join(path_treino_teste_val, 'X_treino.npy'), X_treino)
+    np.save(os.path.join(path_treino_teste_val, 'y_treino.npy'), y_treino)
+    np.save(os.path.join(path_treino_teste_val, 'extras_treino.npy'), extras_treino)
+
+    np.save(os.path.join(path_treino_teste_val, 'X_val.npy'), X_val)
+    np.save(os.path.join(path_treino_teste_val, 'y_val.npy'), y_val)
+    np.save(os.path.join(path_treino_teste_val, 'extras_val.npy'), extras_val)
+
+    np.save(os.path.join(path_treino_teste_val, 'X_teste.npy'), X_teste)
+    np.save(os.path.join(path_treino_teste_val, 'y_teste.npy'), y_teste)
+    np.save(os.path.join(path_treino_teste_val, 'extras_teste.npy'), extras_teste)
+
+    return (X_treino, y_treino, extras_treino,
+            X_val, y_val, extras_val,
+            X_teste, y_teste, extras_teste)
+
+# Função principal que define os caminhos e orquestra o processo de preparação dos dados
+def preparar_dados_lstm(ticker, versao_dados, path_projeto):
+    print(f"\n--- Preparando dados para o modelo LSTM para {ticker} na versão {versao_dados} ---")
+
+    # Define os caminhos
+    path_dados_transformados = os.path.join(path_projeto, f'data/transformed/{ticker}/dados_transformados_{ticker}.csv')
+    base_dados = os.path.join(path_projeto, f'data/prepared/{ticker}/{versao_dados}')
+    path_dados_normalizados = os.path.join(base_dados, 'dados_normalizados')
+    path_scalers = os.path.join(base_dados, 'scalers')
+    path_sequencias = os.path.join(base_dados, 'sequencias')
+    path_treino_teste_val = os.path.join(base_dados, 'treino_teste_val')
+
+    # Executa a normalização
+    print('\n[✔] Normalizando e padronizando dados...')
+    df = normalizar_padronizar_dados(ticker, path_dados_transformados, path_scalers, path_dados_normalizados)
+
+    print('\n[✔] Criando sequências de entrada e alvo...')
+    obs_dia = 82  # Número de candles por dia (Total de observações)
+    target_col = 'fechamento_candle'  # Coluna alvo para previsão
+    colunas_extra = ['data', 'hora']  # Informações auxiliares que serão preservadas separadamente
+    # Criação de sequências
+    X, y, extras = criar_sequencias(df, obs_dia, target_col, colunas_extra, path_sequencias)
+    # Divisão dos dados
+    print('\n[✔] Dividindo dados em treino, validação e teste...')
+
+    print(f"\nOs dados normnalizados estão em: {path_dados_normalizados}")
+    print(f"Os scalers estão em: {path_scalers}")
+    print(f"As sequências estão em: {path_sequencias}")
+    print(f"Os conjuntos de treino, validação e teste estão em: {path_treino_teste_val}")
+
+    return dividir_dados(X, y, extras, path_treino_teste_val)
+
+# Execução direta (Usada para testes)
+if __name__ == "__main__":
+    preparar_dados_lstm('BBDC4', 'v001', '/content/pregao_predict')
+    print("\n[✔] Dados preparados com sucesso.")
