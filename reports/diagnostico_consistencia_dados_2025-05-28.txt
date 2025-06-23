@@ -1,0 +1,28 @@
+Relatório de Diagnóstico - Dados de 2025-05-28
+Verificações de Consistência:
+OK: Coluna 'data' sem nulos.
+OK: Coluna 'hora' sem nulos.
+OK: Coluna 'abertura_dia' sem nulos.
+OK: Coluna 'minima_dia' sem nulos.
+OK: Coluna 'maxima_dia' sem nulos.
+OK: Coluna 'fechamento_dia' sem nulos.
+OK: Coluna 'volume_dia' sem nulos.
+OK: Coluna 'abertura_candle' sem nulos.
+OK: Coluna 'min_candle' sem nulos.
+OK: Coluna 'max_candle' sem nulos.
+OK: Coluna 'fechamento_candle' sem nulos.
+OK: Coluna 'volume_candle' sem nulos.
+OK: Coluna 'RSI' sem nulos.
+OK: Coluna 'EMA_20' sem nulos.
+OK: Coluna 'retorno' sem nulos.
+OK: Coluna 'dia_semana' sem nulos.
+OK: Coluna 'hora_num' sem nulos.
+OK: Coluna 'minuto' sem nulos.
+OK: Coluna 'datetime' sem nulos.
+Erro: Tipo incorreto na coluna 'data' (object).
+Erro: Tipo incorreto na coluna 'hora' (object).
+OK: Nenhuma duplicata.
+OK: Ordem temporal correta.
+Aviso: 82 outliers extremos em 'volume_dia'.
+Aviso: 25 outliers extremos em 'volume_candle'.
+Aviso: 8 outliers extremos em 'retorno'.
