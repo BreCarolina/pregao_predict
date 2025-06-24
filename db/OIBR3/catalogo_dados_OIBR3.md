@@ -2,7 +2,7 @@
 
 Este documento descreve a estrutura e o conteúdo do banco de dados SQLite para o ticker **OIBR3**.
 
-**Atualizado em:** 2025-06-23 21:33:29
+**Atualizado em:** 2025-06-24 16:52:52
 
 ---
 

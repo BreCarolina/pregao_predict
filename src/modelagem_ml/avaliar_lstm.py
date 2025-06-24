@@ -1,5 +1,5 @@
 
-#@title Script para Avaliar LSTM e abastecer relatório de acurácia
+#@title --- Avaliar modelo LSTM ---
 
 import os
 import json
@@ -11,7 +11,7 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from tensorflow.keras.models import load_model
 
 
-def salvar_arquivo_json(dados, caminho): 
+def salvar_arquivo_json(dados, caminho):
     """
     Salva um dicionário em formato JSON no caminho especificado.
     """
@@ -56,8 +56,12 @@ def avaliar_lstm(ticker, versao_modelo, versao_dados, path_projeto):
     path_treino_teste_val = os.path.join(base_dados, 'treino_teste_val')
 
     print('[✓] Carregando dados de teste...')
-    X_teste, y_teste = joblib.load(path_treino_teste_val)
-    X_teste = X_teste.reshape((X_teste.shape[0], X_teste.shape[1], 1))
+    X_teste = np.load(os.path.join(path_treino_teste_val, 'X_teste.npy'), allow_pickle=True)
+    y_teste = np.load(os.path.join(path_treino_teste_val, 'y_teste.npy'), allow_pickle=True)
+
+    # Garante que está em 3D (samples, time steps, features)
+    if len(X_teste.shape) == 2:
+        X_teste = X_teste.reshape((X_teste.shape[0], X_teste.shape[1], 1))
 
     print('[✓] Carregando modelo...')
     model_file = os.path.join(path_modelo, f'modelo_lstm_{versao_modelo}.h5')

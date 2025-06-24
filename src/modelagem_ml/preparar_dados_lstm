@@ -13,7 +13,7 @@ def normalizar_padronizar_dados(ticker, path_dados_transformados, path_scalers, 
     df = pd.read_csv(path_dados_transformados)
 
     # Ordena corretamente por data e hora
-    df = df.sort_values(by=['data', 'hora']).reset_index(drop=True)  
+    df = df.sort_values(by=['data', 'hora']).reset_index(drop=True)
 
     # Seleciona as colunas para o modelo
     df = df[['data', 'hora', 'dia_semana', 'abertura_candle', 'min_candle', 'max_candle',
