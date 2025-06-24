@@ -55,11 +55,11 @@ def calcular_volatilidade(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 # Salva os dois últimos pregões em CSV separado
-def salvar_ultimos_pregoes(df: pd.DataFrame, ticker: str, path_daily: str) -> None:
+def salvar_ultimos_pregoes(df: pd.DataFrame, ticker: str, path_dados_transformados: str) -> None:
     df['data'] = pd.to_datetime(df['data'])
     datas_recentes = sorted(df['data'].dt.date.unique())[-2:]
     df_daily = df[df['data'].dt.date.isin(datas_recentes)].copy()
-    caminho_saida = os.path.join(path_daily, f"dois_ultimos_pregoes.csv")
+    caminho_saida = os.path.join(path_dados_transformados, f'dois_ultimos_pregoes_{ticker.split(".")[0]}_{intervalo}.csv')
     df_daily.to_csv(caminho_saida, index=False)
     print(f"[✓] Daily salvo em: {caminho_saida}")
 
@@ -71,11 +71,9 @@ def transformar_dados(ticker: str, intervalo: str, path_projeto: str) -> None:
     path_dados_limpos = os.path.join(path_projeto, f'data/cleaned/{ticker.split(".")[0]}/dados_limpos_{ticker.split(".")[0]}_{intervalo}.csv')
     path_dados_transformados = os.path.join(path_projeto, f'data/transformed/{ticker.split(".")[0]}/{intervalo}')
     path_arquivo_transformado = os.path.join(path_dados_transformados, f'dados_transformados_{ticker.split(".")[0]}_{intervalo}.csv')
-    path_daily = os.path.join(path_dados_transformados, f'daily_{intervalo}')
-
+    
     os.makedirs(path_dados_transformados, exist_ok=True)
-    os.makedirs(path_daily, exist_ok=True)
-
+    
     # Verifica transformados anteriores e data inicial
     df_transformado_existente, data_inicio = verificar_dados_existentes(path_arquivo_transformado)
 
@@ -110,11 +108,11 @@ def transformar_dados(ticker: str, intervalo: str, path_projeto: str) -> None:
     print(f"[✓] Transformação concluída. Dados salvos em: {path_arquivo_transformado}. Total de {len(df_final)} registros.")
 
     # Salva últimos dois pregões
-    salvar_ultimos_pregoes(df_final, ticker, path_daily)
+    salvar_ultimos_pregoes(df_final, ticker, path_dados_transformados)
 
 # Execução para testes
 if __name__ == "__main__":
-    ticker = 'BBDC4'
+    ticker = 'LREN3'
     intervalo = '15m'
     path_projeto = "/content/pregao_predict"
     transformar_dados(ticker, intervalo, path_projeto)
