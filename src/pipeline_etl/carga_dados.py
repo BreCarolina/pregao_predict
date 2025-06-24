@@ -96,7 +96,10 @@ def carregar_dados(ticker: str, path_projeto: str) -> None:
     print('\nIniciando a carga de dados...')
 
     # Define os caminhos para o arquivo CSV de entrada e o banco de dados SQLite de saída
-    caminho_csv = os.path.join(path_projeto, f'data/transformed/{ticker.split(".")[0]}/dados_transformados_{ticker.split(".")[0]}.csv')
+    caminho_csv = os.path.join(path_projeto, f'data/transformed/{ticker.split(".")[0]}/{intervalo}/dados_transformados_{ticker.split(".")[0]}_{intervalo}.csv')
+    if not os.path.exists(caminho_csv):
+        print(f"[ERRO] Arquivo CSV de entrada não encontrado: {caminho_csv}")
+        return
     caminho_db = os.path.join(path_projeto, f'db/{ticker.split(".")[0]}/SQLite_{ticker.split(".")[0]}.db')
 
     # Cria o diretório 'db' se ele não existir
