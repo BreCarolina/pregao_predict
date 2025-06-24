@@ -88,7 +88,7 @@ def obter_id(conn, tabela, valores):
 
     return row[0] # Retorna o ID do registro
 
-def carregar_dados(ticker: str, path_projeto: str) -> None:
+def carregar_dados(ticker: str, intervalo: str, path_projeto: str) -> None:
     """
     Carrega dados transformados de um arquivo CSV para um banco de dados SQLite,
     otimizando a inserção e gerenciando as tabelas de dimensões e fatos.
