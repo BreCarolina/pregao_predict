@@ -1,6 +1,5 @@
 
-#@title --- Preparar dados modelo LSTM saida multivariada ----- (15min - 27 Observações)
-
+#@title --- Preparar dados modelo LSTM saída multivariada ----- (15min - 27 Observações)
 
 import os
 import pandas as pd
@@ -25,22 +24,26 @@ def normalizar_padronizar_dados(ticker, path_dados_transformados, path_scalers, 
 
     df = pd.get_dummies(df, columns=['dia_semana'], prefix='dia_semana')
 
-    colunas_normalizar = ['abertura', 'minimo', 'maximo', 'fechamento', 'volume', 'volatilidade', 'hora_num', 'minuto']
+    colunas_normalizar = ['abertura', 'minimo', 'maximo', 'volume', 'volatilidade', 'hora_num', 'minuto']
     colunas_padronizar = ['retorno']
 
-    for col in colunas_normalizar + colunas_padronizar:
+    for col in colunas_normalizar + colunas_padronizar + ['fechamento']:
         if not pd.api.types.is_numeric_dtype(df[col]):
             raise ValueError(f"Coluna {col} não é numérica.")
 
+    # Normalização das features
     minmax_scaler = MinMaxScaler()
     df[colunas_normalizar] = minmax_scaler.fit_transform(df[colunas_normalizar])
 
+    # Normalização separada da variável alvo
     target_scaler = MinMaxScaler()
     df['fechamento'] = target_scaler.fit_transform(df[['fechamento']])
 
+    # Padronização do retorno
     standard_scaler = StandardScaler()
     df[colunas_padronizar] = standard_scaler.fit_transform(df[colunas_padronizar])
 
+    # Salvando os scalers
     os.makedirs(path_scalers, exist_ok=True)
     joblib.dump(minmax_scaler, os.path.join(path_scalers, 'minmax_scaler.pkl'))
     joblib.dump(standard_scaler, os.path.join(path_scalers, 'standard_scaler.pkl'))
@@ -49,10 +52,12 @@ def normalizar_padronizar_dados(ticker, path_dados_transformados, path_scalers, 
     scalers_info = {
         'colunas_normalizadas': colunas_normalizar,
         'colunas_padronizadas': colunas_padronizar,
-        'colunas_one_hot': [col for col in df.columns if col.startswith('dia_semana_')]
+        'colunas_one_hot': [col for col in df.columns if col.startswith('dia_semana_')],
+        'scaler_target': 'target_scaler.pkl'
     }
     joblib.dump(scalers_info, os.path.join(path_scalers, 'scalers_info.pkl'))
 
+    # Salvando dados normalizados
     os.makedirs(path_dados_normalizados, exist_ok=True)
     df.to_csv(os.path.join(path_dados_normalizados, 'dados_normalizados.csv'), index=False)
     return df
@@ -66,7 +71,14 @@ def criar_sequencias(df, obs_dia, target_col, colunas_extra, path_sequencias):
         seq = df.iloc[i : i + seq_len]
         alvo = df.iloc[i + seq_len : i + seq_len + n_alvos]
 
+        # Garante que os alvos pertencem a um único pregão
         if len(alvo['data'].unique()) != 1:
+            continue
+
+        # Verifica se os dias entre sequência e alvo são consecutivos
+        data_ultima_seq = seq.iloc[-1]['data']
+        data_primeiro_alvo = alvo.iloc[0]['data']
+        if data_ultima_seq == data_primeiro_alvo:
             continue
 
         seq_x = seq.drop(columns=['data', 'hora'] + colunas_extra).values.astype(np.float32)
@@ -149,4 +161,3 @@ if __name__ == "__main__":
     path_projeto = '/content/pregao_predict'
     preparar_dados_lstm(ticker, intervalo, versao_dados, path_projeto)
     print("\n[✔] Dados preparados com sucesso.")
-
