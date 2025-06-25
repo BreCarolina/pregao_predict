@@ -26,7 +26,7 @@ def limpeza_dados(df):
     df['hora'] = df.index.time
     df.index.name = 'datetime'
     df = df.reset_index()
-    df['data'] = pd.to_datetime(df['datetime'].dt.date)  
+    df['data'] = pd.to_datetime(df['datetime'].dt.date)
 
     # Renomeia as colunas do padrão do yfinance para nomes em português
     mapeamento_colunas = {
@@ -43,7 +43,7 @@ def limpeza_dados(df):
         df[col] = pd.to_numeric(df[col], errors='coerce').round(2)
     df['volume'] = pd.to_numeric(df['volume'], errors='coerce', downcast='integer')
 
-    # Reorganiza as colunas 
+    # Reorganiza as colunas
     df = df[['data', 'hora', 'abertura', 'minimo', 'maximo', 'fechamento', 'volume', 'datetime']]
 
     print("\nAmostra após criar a coluna ´data´e ´hora´, reorganizar e renomear as colunas:")
@@ -79,7 +79,7 @@ def limpeza_dados(df):
     df = df.sort_values(["data", "hora"])
     print("\nAmostra de dados limpos e ordenados:")
     print(df.head(5))
-    
+
     return df
 
 #---------------------- Extração de dados -----------------------------------------#
