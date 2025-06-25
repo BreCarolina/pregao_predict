@@ -61,7 +61,7 @@ def carregar_dados(ticker: str, intervalo: str, path_projeto: str) -> None:
     print('\nIniciando a carga de dados...')
     
     caminho_csv = os.path.join(path_projeto, f'data/transformed/{ticker.split(".")[0]}/{intervalo}/dados_transformados_{ticker.split(".")[0]}_{intervalo}.csv')
-    caminho_db = os.path.join(path_projeto, f'db/{ticker}/SQLite_{ticker.split(".")[0]}_{intervalo}.db')
+    caminho_db = os.path.join(path_projeto, f'db/{ticker.split(".")[0]}/SQLite_{ticker.split(".")[0]}_{intervalo}.db')
 
     if not os.path.exists(caminho_csv):
         print(f"[ERRO] Arquivo CSV não encontrado: {caminho_csv}")

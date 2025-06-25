@@ -71,7 +71,7 @@ def salvar_ultimos_pregoes(df: pd.DataFrame, ticker: str, intervalo: str, path_s
 
 # Pipeline principal
 def transformar_dados(ticker: str, intervalo: str, path_projeto: str) -> None:
-    print(f"\n--- Iniciando transformação de dados para {ticker.split(".")[0]} ({intervalo}) ---\n")
+    print(f"\n--- Iniciando transformação de dados para {ticker.split('.')[0]} ({intervalo}) ---\n")
 
     # Define caminhos
     path_dados_limpos = os.path.join(path_projeto, f'data/cleaned/{ticker.split(".")[0]}/dados_limpos_{ticker.split(".")[0]}_{intervalo}.csv')
@@ -117,7 +117,7 @@ def transformar_dados(ticker: str, intervalo: str, path_projeto: str) -> None:
 
 # Execução direta para testes
 if __name__ == "__main__":
-    ticker = 'BBDC3'
+    ticker = 'BBDC4'
     intervalo = '15m'
     path_projeto = "/content/pregao_predict"
     transformar_dados(ticker, intervalo, path_projeto)

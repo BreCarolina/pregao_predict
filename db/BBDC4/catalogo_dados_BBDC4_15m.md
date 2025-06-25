@@ -2,7 +2,7 @@
 
 Este documento descreve a estrutura e o conteúdo do banco de dados SQLite para o ticker **BBDC4**.
 
-**Atualizado em:** 2025-06-25 02:25:13
+**Atualizado em:** 2025-06-25 02:33:00
 
 ---
 
