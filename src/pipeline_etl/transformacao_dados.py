@@ -65,18 +65,18 @@ def salvar_ultimos_pregoes(df: pd.DataFrame, ticker: str, intervalo: str, path_s
     df['data'] = pd.to_datetime(df['data'])
     datas_recentes = sorted(df['data'].dt.date.unique())[-2:]
     df_ultimos = df[df['data'].dt.date.isin(datas_recentes)].copy()
-    caminho_saida = os.path.join(path_saida, f'dois_ultimos_pregoes_{ticker}_{intervalo}.csv')
+    caminho_saida = os.path.join(path_saida, f'dois_ultimos_pregoes_{ticker.split(".")[0]}_{intervalo}.csv')
     df_ultimos.to_csv(caminho_saida, index=False)
     print(f"[✓] Arquivo dos dois últimos pregões salvo em: {caminho_saida}")
 
 # Pipeline principal
 def transformar_dados(ticker: str, intervalo: str, path_projeto: str) -> None:
-    print(f"\n--- Iniciando transformação de dados para {ticker} ({intervalo}) ---\n")
+    print(f"\n--- Iniciando transformação de dados para {ticker.split(".")[0]} ({intervalo}) ---\n")
 
     # Define caminhos
-    path_dados_limpos = os.path.join(path_projeto, f"data/cleaned/{ticker}/dados_limpos_{ticker}_{intervalo}.csv")
-    path_dados_transformados = os.path.join(path_projeto, f"data/transformed/{ticker}/{intervalo}")
-    path_arquivo_transformado = os.path.join(path_dados_transformados, f'dados_transformados_{ticker}_{intervalo}.csv')
+    path_dados_limpos = os.path.join(path_projeto, f'data/cleaned/{ticker.split(".")[0]}/dados_limpos_{ticker.split(".")[0]}_{intervalo}.csv')
+    path_dados_transformados = os.path.join(path_projeto, f'data/transformed/{ticker.split(".")[0]}/{intervalo}')
+    path_arquivo_transformado = os.path.join(path_dados_transformados, f'dados_transformados_{ticker.split(".")[0]}_{intervalo}.csv')
 
     os.makedirs(path_dados_transformados, exist_ok=True)
 
