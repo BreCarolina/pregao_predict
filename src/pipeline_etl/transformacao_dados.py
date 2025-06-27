@@ -11,9 +11,9 @@ import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 # Verifica a última data transformada, se houver
-def verificar_dados_existentes(path_dados_transformados):
-    if os.path.exists(path_dados_transformados):
-        df_existente = pd.read_csv(path_dados_transformados, parse_dates=['data'])
+def verificar_dados_existentes(path_transformados):
+    if os.path.exists(path_transformados):
+        df_existente = pd.read_csv(path_transformados, parse_dates=['data'])
         ultima_data = df_existente["data"].max().date()
         print(f"[INFO] Último registro transformado encontrado: {ultima_data}")
         data_inicio = ultima_data + timedelta(days=1)
@@ -75,10 +75,10 @@ def transformar_dados(ticker: str, intervalo: str, path_projeto: str) -> None:
 
     # Define caminhos
     path_dados_limpos = os.path.join(path_projeto, f'data/cleaned/{ticker.split(".")[0]}/dados_limpos_{ticker.split(".")[0]}_{intervalo}.csv')
-    path_dados_transformados = os.path.join(path_projeto, f'data/transformed/{ticker.split(".")[0]}/{intervalo}')
-    path_arquivo_transformado = os.path.join(path_dados_transformados, f'dados_transformados_{ticker.split(".")[0]}_{intervalo}.csv')
+    path_transformados = os.path.join(path_projeto, f'data/transformed/{ticker.split(".")[0]}/{intervalo}')
+    path_arquivo_transformado = os.path.join(path_transformados, f'dados_transformados_{ticker.split(".")[0]}_{intervalo}.csv')
 
-    os.makedirs(path_dados_transformados, exist_ok=True)
+    os.makedirs(path_transformados, exist_ok=True)
 
     # Verifica dados anteriores e data de início
     df_existente, data_inicio = verificar_dados_existentes(path_arquivo_transformado)
@@ -113,7 +113,7 @@ def transformar_dados(ticker: str, intervalo: str, path_projeto: str) -> None:
     print(f"[✓] Transformação concluída. Total de {len(df_final)} registros salvos em: {path_arquivo_transformado}")
 
     # Salva os dois últimos pregões
-    salvar_ultimos_pregoes(df_final, ticker, intervalo, path_dados_transformados)
+    salvar_ultimos_pregoes(df_final, ticker, intervalo, path_transformados)
 
 # Execução direta para testes
 if __name__ == "__main__":
