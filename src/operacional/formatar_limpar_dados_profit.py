@@ -50,7 +50,7 @@ def formatar_dados_profit( ticker, intervalo, path_raw, path_projeto):
 
 if __name__ == "__main__":    
     ticker = 'LREN3'
-    intervalo = '5min'
+    intervalo = '5m'
     path_projeto = '/content/pregao_predict'
     path_raw = '/content/LREN3_B_0_5min.csv'
     formatar_dados_profit(ticker, intervalo, path_raw, path_projeto)
