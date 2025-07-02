@@ -1,5 +1,4 @@
-
-#@title --- Preparar dados modelo LSTM saída multivariada ----- (15min - 27 Observações)
+#@title SRC Transformação de dados para LSTM
 
 import os
 import pandas as pd
@@ -7,157 +6,187 @@ import numpy as np
 import joblib
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
-def filtrar_intervalo_horario(df):
-    df['hora'] = pd.to_datetime(df['hora'], format='%H:%M:%S').dt.time
-    hora_inicio = pd.to_datetime('10:05', format='%H:%M').time()
-    hora_fim = pd.to_datetime('16:50', format='%H:%M').time()
-    df = df[df['hora'].between(hora_inicio, hora_fim)]
-    return df
+def preencher_dias_incompletos(df, obs_por_dia):
+    print("[INFO] Preenchendo dias incompletos...")
+    df['Data'] = pd.to_datetime(df['Data'])
+    dias = df['Data'].dt.date.unique()
+    df_preenchido = []
 
-def normalizar_padronizar_dados(ticker, path_dados_transformados, path_scalers, path_dados_normalizados):
-    df = pd.read_csv(path_dados_transformados)
-    df = df.sort_values(by=['data', 'hora']).reset_index(drop=True)
-    df = filtrar_intervalo_horario(df)
+    for dia in dias:
+        df_dia = df[df['Data'].dt.date == dia]
+        if len(df_dia) < obs_por_dia:
+            faltam = obs_por_dia - len(df_dia)
+            ultimo = df_dia.iloc[-1].copy()
+            for _ in range(faltam):
+                novo = ultimo.copy()
+                novo['Hora'] = pd.NaT
+                # Se precisar preencher outras colunas não numéricas, ajustar aqui
+                df_dia = pd.concat([df_dia, pd.DataFrame([novo])], ignore_index=True)
+        df_preenchido.append(df_dia)
 
-    df = df[['data', 'hora', 'dia_semana', 'abertura', 'minimo', 'maximo',
-             'fechamento', 'volume', 'retorno', 'volatilidade', 'hora_num', 'minuto']]
+    df_final = pd.concat(df_preenchido).reset_index(drop=True)
+    print("[INFO] Preenchimento concluído.")
+    return df_final
 
-    df = pd.get_dummies(df, columns=['dia_semana'], prefix='dia_semana')
+def normalizar_padronizar_dados(ticker, path_dados_limpos, path_scalers, path_normalizados):
+    df = pd.read_csv(path_dados_limpos)    
+    df['Data'] = pd.to_datetime(df['Data'])
 
-    colunas_normalizar = ['abertura', 'minimo', 'maximo', 'volume', 'volatilidade', 'hora_num', 'minuto']
-    colunas_padronizar = ['retorno']
+    obs_por_dia = df.groupby(df['Data']).size().mode()[0]
+    print(f"[INFO] Observações por dia mais frequente: {obs_por_dia}")
 
-    for col in colunas_normalizar + colunas_padronizar + ['fechamento']:
-        if not pd.api.types.is_numeric_dtype(df[col]):
-            raise ValueError(f"Coluna {col} não é numérica.")
+    print("\n[INFO] Criando variáveis categóricas para dias da semana...")
+    df['Dia_semana'] = df['Data'].dt.day_name()
+    df = pd.get_dummies(df, columns=['Dia_semana'], prefix='Dia_semana') 
+    print("[INFO] Variáveis categóricas criadas para dias da semana.")
 
-    # Normalização das features
+    df = preencher_dias_incompletos(df, obs_por_dia)
+
+    colunas_temporais = ['Data', 'Hora']
+    colunas_normalizar = ['Abertura', 'Máximo', 'Mínimo']
+    colunas_padronizar = ['Volume', 'Quantidade']
+    coluna_target = 'Fechamento'
+
+    print("\n[INFO] Normalizando colunas de preço...")
     minmax_scaler = MinMaxScaler()
     df[colunas_normalizar] = minmax_scaler.fit_transform(df[colunas_normalizar])
+    print(f"[INFO] Colunas normalizadas (MinMaxScaler): {colunas_normalizar}") 
 
-    # Normalização separada da variável alvo
+    print("\n[INFO] Normalizando coluna target separadamente...")
     target_scaler = MinMaxScaler()
-    df['fechamento'] = target_scaler.fit_transform(df[['fechamento']])
+    df[[coluna_target]] = target_scaler.fit_transform(df[[coluna_target]])
+    print(f"[INFO] Coluna target '{coluna_target}' normalizada (MinMaxScaler).")
 
-    # Padronização do retorno
+    print("\n[INFO] Padronizando colunas de volume e quantidade...")
     standard_scaler = StandardScaler()
     df[colunas_padronizar] = standard_scaler.fit_transform(df[colunas_padronizar])
+    print(f"[INFO] Colunas padronizadas (StandardScaler): {colunas_padronizar}")
 
-    # Salvando os scalers
     os.makedirs(path_scalers, exist_ok=True)
     joblib.dump(minmax_scaler, os.path.join(path_scalers, 'minmax_scaler.pkl'))
     joblib.dump(standard_scaler, os.path.join(path_scalers, 'standard_scaler.pkl'))
     joblib.dump(target_scaler, os.path.join(path_scalers, 'target_scaler.pkl'))
 
-    scalers_info = {
+    joblib.dump({
         'colunas_normalizadas': colunas_normalizar,
         'colunas_padronizadas': colunas_padronizar,
-        'colunas_one_hot': [col for col in df.columns if col.startswith('dia_semana_')],
+        'colunas_dummy': [col for col in df.columns if col.startswith('Dia_semana_')],
         'scaler_target': 'target_scaler.pkl'
-    }
-    joblib.dump(scalers_info, os.path.join(path_scalers, 'scalers_info.pkl'))
+    }, os.path.join(path_scalers, 'scalers_info.pkl'))
 
-    # Salvando dados normalizados
-    os.makedirs(path_dados_normalizados, exist_ok=True)
-    df.to_csv(os.path.join(path_dados_normalizados, 'dados_normalizados.csv'), index=False)
-    return df
+    os.makedirs(path_normalizados, exist_ok=True)
+    df.to_csv(os.path.join(path_normalizados, 'dados_normalizados.csv'), index=False)
 
-def criar_sequencias(df, obs_dia, target_col, colunas_extra, path_sequencias):
-    X, y, extras = [], [], []
-    seq_len = 2 * obs_dia
-    n_alvos = obs_dia
+    return df, obs_por_dia
 
-    for i in range(len(df) - seq_len - n_alvos + 1):
-        seq = df.iloc[i : i + seq_len]
-        alvo = df.iloc[i + seq_len : i + seq_len + n_alvos]
+def criar_sequencias(df, obs_por_dia, colunas_temporais, path_sequencias):
+    X, y, tempos = [], [], []
+    obs_entrada = 2 * obs_por_dia
 
-        # Garante que os alvos pertencem a um único pregão
-        if len(alvo['data'].unique()) != 1:
+    df['Data'] = pd.to_datetime(df['Data'])
+    dias_unicos = df['Data'].dt.date.unique()
+
+    for i in range(len(dias_unicos) - 2):
+        d1, d2, d3 = dias_unicos[i], dias_unicos[i+1], dias_unicos[i+2]
+
+        entrada = pd.concat([
+            df[df['Data'].dt.date == d1],
+            df[df['Data'].dt.date == d2]
+        ])
+        saida = df[df['Data'].dt.date == d3]
+
+        # Verifica se os dias têm o número esperado de observações (para evitar sequências inconsistentes)
+        if len(entrada) != obs_entrada or len(saida) != obs_por_dia:
             continue
 
-        # Verifica se os dias entre sequência e alvo são consecutivos
-        data_ultima_seq = seq.iloc[-1]['data']
-        data_primeiro_alvo = alvo.iloc[0]['data']
-        if data_ultima_seq == data_primeiro_alvo:
-            continue
+        drop_cols = ['Data', 'Hora', 'Ticker'] + [c for c in colunas_temporais if c not in ['Data', 'Hora']]
+        entrada_limpa = entrada.drop(columns=[col for col in drop_cols if col in entrada.columns])
 
-        seq_x = seq.drop(columns=['data', 'hora'] + colunas_extra).values.astype(np.float32)
-        seq_y = alvo[target_col].values.astype(np.float32)
-        X.append(seq_x)
-        y.append(seq_y)
-        extras.append(alvo.iloc[0][colunas_extra].values)
+        entrada_limpa = entrada_limpa.select_dtypes(include=[np.number])
 
-    X = np.array(X, dtype=np.float32)
-    y = np.array(y, dtype=np.float32)
-    extras = np.array(extras, dtype=object)
+        X.append(entrada_limpa.values.astype(np.float32))
+        y.append(saida['Fechamento'].values.astype(np.float32))
+
+        # Preencher vetor tempos com as datas dos dois dias de entrada concatenados
+        tempos.append([d1, d2])
+
+    X = np.array(X)
+    y = np.array(y)
+    tempos = np.array(tempos, dtype=object)
 
     os.makedirs(path_sequencias, exist_ok=True)
     np.save(os.path.join(path_sequencias, 'X.npy'), X)
     np.save(os.path.join(path_sequencias, 'y.npy'), y)
-    np.save(os.path.join(path_sequencias, 'extras.npy'), extras)
+    np.save(os.path.join(path_sequencias, 'colunas_temporais.npy'), tempos)
 
-    return X, y, extras
+    print(f"[INFO] Sequências geradas: {X.shape[0]} exemplos.")
+    print(f"[INFO] Formato de X: {X.shape}")
+    print(f"[INFO] Formato de y: {y.shape}")
+    print(f"[INFO] Formato de tempos: {tempos.shape}")
 
-def dividir_dados(X, y, extras, path_treino_teste_val, proporcao_treino=0.7, proporcao_val=0.15):
-    n = len(X)
-    n_treino = int(n * proporcao_treino)
-    n_val = int(n * proporcao_val)
+    return X, y, tempos
 
-    X_treino, y_treino, extras_treino = X[:n_treino], y[:n_treino], extras[:n_treino]
-    X_val, y_val, extras_val = X[n_treino:n_treino + n_val], y[n_treino:n_treino + n_val], extras[n_treino:n_treino + n_val]
-    X_teste, y_teste, extras_teste = X[n_treino + n_val:], y[n_treino + n_val:], extras[n_treino + n_val:]
+def dividir_dados(X, y, tempos, path_divisao, proporcao_treino=0.7, proporcao_val=0.15):
+    total = len(X)
+    if total == 0:
+        return (np.array([]),)*9
 
-    os.makedirs(path_treino_teste_val, exist_ok=True)
-    np.save(os.path.join(path_treino_teste_val, 'X_treino.npy'), X_treino)
-    np.save(os.path.join(path_treino_teste_val, 'y_treino.npy'), y_treino)
-    np.save(os.path.join(path_treino_teste_val, 'extras_treino.npy'), extras_treino)
+    n_treino = int(total * proporcao_treino)
+    n_val = int(total * proporcao_val)
 
-    np.save(os.path.join(path_treino_teste_val, 'X_val.npy'), X_val)
-    np.save(os.path.join(path_treino_teste_val, 'y_val.npy'), y_val)
-    np.save(os.path.join(path_treino_teste_val, 'extras_val.npy'), extras_val)
+    X_treino, y_treino, t_treino = X[:n_treino], y[:n_treino], tempos[:n_treino]
+    X_val, y_val, t_val = X[n_treino:n_treino+n_val], y[n_treino:n_treino+n_val], tempos[n_treino:n_treino+n_val]
+    X_teste, y_teste, t_teste = X[n_treino+n_val:], y[n_treino+n_val:], tempos[n_treino+n_val:]
 
-    np.save(os.path.join(path_treino_teste_val, 'X_teste.npy'), X_teste)
-    np.save(os.path.join(path_treino_teste_val, 'y_teste.npy'), y_teste)
-    np.save(os.path.join(path_treino_teste_val, 'extras_teste.npy'), extras_teste)
+    os.makedirs(path_divisao, exist_ok=True)
+    np.save(os.path.join(path_divisao, 'X_treino.npy'), X_treino)
+    np.save(os.path.join(path_divisao, 'y_treino.npy'), y_treino)
+    np.save(os.path.join(path_divisao, 'temporais_treino.npy'), t_treino)
 
-    return (X_treino, y_treino, extras_treino,
-            X_val, y_val, extras_val,
-            X_teste, y_teste, extras_teste)
+    np.save(os.path.join(path_divisao, 'X_val.npy'), X_val)
+    np.save(os.path.join(path_divisao, 'y_val.npy'), y_val)
+    np.save(os.path.join(path_divisao, 'temporais_val.npy'), t_val)
+
+    np.save(os.path.join(path_divisao, 'X_teste.npy'), X_teste)
+    np.save(os.path.join(path_divisao, 'y_teste.npy'), y_teste)
+    np.save(os.path.join(path_divisao, 'temporais_teste.npy'), t_teste)
+
+    print(f"[INFO] Divisão: treino={len(X_treino)}, val={len(X_val)}, teste={len(X_teste)}")
+    return (X_treino, y_treino, t_treino, X_val, y_val, t_val, X_teste, y_teste, t_teste)
 
 def preparar_dados_lstm(ticker, intervalo, versao_dados, path_projeto):
-    print(f"\n--- Preparando dados para o modelo LSTM para {ticker} na versão {versao_dados} ---")
+    print(f"\n[INÍCIO] Preparando dados LSTM para {ticker} - Versão: {versao_dados}")
 
-    path_dados_transformados = os.path.join(path_projeto, f'data/transformed/{ticker}/{intervalo}/dados_transformados_{ticker}_{intervalo}.csv')
-    base_dados = os.path.join(path_projeto, f'data/prepared/{ticker}/{intervalo}_{versao_dados}')
-    path_dados_normalizados = os.path.join(base_dados, 'dados_normalizados')
-    path_scalers = os.path.join(base_dados, 'scalers')
-    path_sequencias = os.path.join(base_dados, 'sequencias')
-    path_treino_teste_val = os.path.join(base_dados, 'treino_teste_val')
+    base_path = os.path.join(path_projeto, f'data')
+    path_dados_limpos = os.path.join(base_path, f'cleaned/{ticker}/{intervalo}/dados_limpos_{ticker}_{intervalo}.csv')
+    path_dados_preparados = os.path.join(base_path, f'prepared/{ticker}/{intervalo}_{versao_dados}')
 
-    print('\n[✔] Normalizando e padronizando dados...')
-    df = normalizar_padronizar_dados(ticker, path_dados_transformados, path_scalers, path_dados_normalizados)
+    path_normalizados = os.path.join(path_dados_preparados, 'dados_normalizados')
+    path_scalers = os.path.join(path_dados_preparados, 'scalers')
+    path_sequencias = os.path.join(path_dados_preparados, 'sequencias')
+    path_divisao = os.path.join(path_dados_preparados, 'treino_teste_val')
 
-    print('\n[✔] Criando sequências de entrada e alvo...')
-    obs_dia = 27
-    target_col = 'fechamento'
-    colunas_tempo = ['data', 'hora']
+    print("Normalizando e padronizando dados...")
+    df, obs_por_dia = normalizar_padronizar_dados(ticker, path_dados_limpos, path_scalers, path_normalizados)
 
-    X, y, extras = criar_sequencias(df, obs_dia, target_col, colunas_tempo, path_sequencias)
+    print("Criando sequências...")
+    colunas_temporais = ['Data', 'Hora'] 
+    X, y, tempos = criar_sequencias(df, obs_por_dia, colunas_temporais, path_sequencias)
 
-    print('\n[✔] Dividindo dados em treino, validação e teste...')
-    dividir_dados(X, y, extras, path_treino_teste_val)
+    if X.shape[0] == 0:
+        print("[AVISO] Nenhuma sequência foi criada. Verifique as condições e o volume de dados.")
+        return None, None, None
 
-    print(f"\nOs dados normalizados estão em: {path_dados_normalizados}")
-    print(f"Os scalers estão em: {path_scalers}")
-    print(f"As sequências estão em: {path_sequencias}")
-    print(f"Os conjuntos de treino, validação e teste estão em: {path_treino_teste_val}")
+    print("Dividindo os dados...")
+    dividir_dados(X, y, tempos, path_divisao)
 
-    return X, y, extras
+    print("\n[✔] Pipeline finalizado com sucesso!")
+    return X, y, tempos
 
 if __name__ == "__main__":
-    ticker = 'BBDC4'
-    intervalo = '15m'
-    versao_dados = 'v001'
-    path_projeto = '/content/pregao_predict'
-    preparar_dados_lstm(ticker, intervalo, versao_dados, path_projeto)
-    print("\n[✔] Dados preparados com sucesso.")
+    preparar_dados_lstm(
+        ticker='LREN3',
+        intervalo='5m',
+        versao_dados='v1',
+        path_projeto='/content/pregao_predict'
+    )
