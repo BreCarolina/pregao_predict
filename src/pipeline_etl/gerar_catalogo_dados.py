@@ -60,7 +60,7 @@ def gerar_catalogo_dados(ticker: str, intervalo: str, path_projeto: str):
 
             f.write("---\n\n")
             f.write("## Observações\n\n")
-            f.write("- A base contém apenas a tabela `preco_lote`, com dados de candles de 5 minutos.\n")
+            f.write("- A base contém apenas a tabela `dados_limpos`, com dados de candles de 5 minutos.\n")
             f.write("- Cada linha representa um momento único da negociação (ativo + data + hora).\n")
             f.write("- A estrutura é simples e direta, ideal para análises e modelagens temporais.\n")
 
