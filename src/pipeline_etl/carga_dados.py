@@ -61,7 +61,7 @@ def carregar_dados(ticker: str, intervalo: str, path_projeto: str) -> None:
     for _, row in df.iterrows():
         try:
             cursor.execute("""
-                INSERT OR IGNORE INTO preco_lote (
+                INSERT OR IGNORE INTO dados_limpos (
                     ativo, data, hora, abertura, maximo, minimo,
                     fechamento, volume, quantidade
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -82,4 +82,4 @@ def carregar_dados(ticker: str, intervalo: str, path_projeto: str) -> None:
 
 # Execução direta para testes
 if __name__ == "__main__":
-    carregar_dados('LREN3', '5min', '/content/pregao_predict')
+    carregar_dados('LREN3', '5m', '/content/pregao_predict')
