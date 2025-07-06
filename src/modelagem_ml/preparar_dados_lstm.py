@@ -29,7 +29,7 @@ def preencher_dias_incompletos(df, obs_por_dia):
     return df_final
 
 def normalizar_padronizar_dados(ticker, path_dados_limpos, path_scalers, path_normalizados):
-    df = pd.read_csv(path_dados_limpos)    
+    df = pd.read_csv(path_dados_limpos)
     df['Data'] = pd.to_datetime(df['Data'])
 
     obs_por_dia = df.groupby(df['Data']).size().mode()[0]
@@ -37,7 +37,7 @@ def normalizar_padronizar_dados(ticker, path_dados_limpos, path_scalers, path_no
 
     print("\n[INFO] Criando variáveis categóricas para dias da semana...")
     df['Dia_semana'] = df['Data'].dt.day_name()
-    df = pd.get_dummies(df, columns=['Dia_semana'], prefix='Dia_semana') 
+    df = pd.get_dummies(df, columns=['Dia_semana'], prefix='Dia_semana')
     print("[INFO] Variáveis categóricas criadas para dias da semana.")
 
     df = preencher_dias_incompletos(df, obs_por_dia)
@@ -50,7 +50,7 @@ def normalizar_padronizar_dados(ticker, path_dados_limpos, path_scalers, path_no
     print("\n[INFO] Normalizando colunas de preço...")
     minmax_scaler = MinMaxScaler()
     df[colunas_normalizar] = minmax_scaler.fit_transform(df[colunas_normalizar])
-    print(f"[INFO] Colunas normalizadas (MinMaxScaler): {colunas_normalizar}") 
+    print(f"[INFO] Colunas normalizadas (MinMaxScaler): {colunas_normalizar}")
 
     print("\n[INFO] Normalizando coluna target separadamente...")
     target_scaler = MinMaxScaler()
@@ -170,7 +170,7 @@ def preparar_dados_lstm(ticker, intervalo, versao_dados, path_projeto):
     df, obs_por_dia = normalizar_padronizar_dados(ticker, path_dados_limpos, path_scalers, path_normalizados)
 
     print("Criando sequências...")
-    colunas_temporais = ['Data', 'Hora'] 
+    colunas_temporais = ['Data', 'Hora']
     X, y, tempos = criar_sequencias(df, obs_por_dia, colunas_temporais, path_sequencias)
 
     if X.shape[0] == 0:
