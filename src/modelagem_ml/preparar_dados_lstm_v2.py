@@ -43,6 +43,10 @@ def normalizar_padronizar_dados(path_dados_limpos, path_scalers, path_normalizad
         df_dia = df[df['Data'].dt.date == data_dia].copy()
         df_proximo = df[df['Data'].dt.date == data_proximo].copy()
 
+        if df_dia.shape[0] != 80 or df_proximo.shape[0] != 80:
+            print(f"[AVISO] Ignorando dias com quantidade de candles diferente de 80: {data_dia}, {data_proximo}")
+            continue
+
         scaler_preco = MinMaxScaler()
         scaler_target = MinMaxScaler()
         scaler_volume = StandardScaler()
@@ -54,8 +58,17 @@ def normalizar_padronizar_dados(path_dados_limpos, path_scalers, path_normalizad
         scaler_target_y = MinMaxScaler()
         df_proximo_y = scaler_target_y.fit_transform(df_proximo[[coluna_target]])
 
-        X_sequencias.append(df_dia.drop(columns=colunas_temporais).values)
-        y_sequencias.append(df_proximo_y.flatten())
+        X_dia = df_dia.drop(columns=colunas_temporais).values
+        y_dia = df_proximo_y.flatten()
+
+        if X_dia.shape != (80, X_dia.shape[1]) or y_dia.shape != (80,):
+            print(f"[ERRO] Formato inesperado ao processar {data_dia}. Ignorando.")
+            continue
+
+        print(f"[OK] Pregão {data_dia} -> {data_proximo} | X: {X_dia.shape}, y: {y_dia.shape}")
+
+        X_sequencias.append(X_dia)
+        y_sequencias.append(y_dia)
 
         scalers_por_dia[str(data_dia)] = {
             'scaler_preco': scaler_preco,
@@ -90,7 +103,10 @@ def dividir_e_salvar_dados(X, y, path_treino_val_teste, proporcao_val=0.15, prop
     np.save(os.path.join(path_treino_val_teste, 'X_teste.npy'), X_teste)
     np.save(os.path.join(path_treino_val_teste, 'y_teste.npy'), y_teste)
 
-    print(f"\n[✓] Divisão concluída: {X_treino.shape[0]} treino, {X_val.shape[0]} validação, {X_teste.shape[0]} teste")
+    print(f"\n[✓] Divisão concluída:")
+    print(f"  -> Treino:      {X_treino.shape[0]} sequências")
+    print(f"  -> Validação:   {X_val.shape[0]} sequências")
+    print(f"  -> Teste:       {X_teste.shape[0]} sequências")
 
 def preparar_dados_lstm(ticker, intervalo, versao_dados, path_projeto):
     print(f"\n[INICIO] Preparando dados LSTM para {ticker} - Versao: {versao_dados}")
