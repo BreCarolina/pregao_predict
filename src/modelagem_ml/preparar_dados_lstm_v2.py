@@ -1,8 +1,7 @@
-
 #@title Preparar dados LSTM - Versão 02
 
 '''
-Normalização por pregão, criação de sequências e divisão dos dados 
+Normalização por pregão, criação de sequências e divisão dos dados.
 '''
 
 import os
@@ -10,17 +9,14 @@ import pandas as pd
 import numpy as np
 import joblib
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
-
-# Função para normalizar os dados por pregão e salvar os scalers por dia
+from sklearn.model_selection import train_test_split
 
 def normalizar_padronizar_dados(path_dados_limpos, path_scalers, path_normalizados):
     df = pd.read_csv(path_dados_limpos)
     df['Data'] = pd.to_datetime(df['Data'])
 
-    # Filtra o horário do pregão entre 10:10 e 16:45
     df = df[(df['Hora'] >= '10:10:00') & (df['Hora'] <= '16:45:00')]
 
-    # Conta candles por dia e filtra apenas os dias com 80 candles
     contagem_por_dia = df.groupby(df['Data'].dt.date).size()
     dias_validos = contagem_por_dia[contagem_por_dia == 80].index
     df = df[df['Data'].dt.date.isin(dias_validos)]
@@ -28,22 +24,18 @@ def normalizar_padronizar_dados(path_dados_limpos, path_scalers, path_normalizad
     print(f"\n[INFO] Filtrando apenas os pregões com 80 candles...")
     print(f"[INFO] {len(dias_validos)} pregões válidos encontrados.")
 
-    # Cria variáveis categóricas para o dia da semana
     df['Dia_semana'] = df['Data'].dt.day_name()
     df = pd.get_dummies(df, columns=['Dia_semana'], prefix='Dia_semana')
 
-    # Define colunas
     colunas_temporais = ['Data', 'Hora'] + [col for col in df.columns if col.startswith('Dia_semana_')]
     colunas_normalizar = ['Abertura', 'Máximo', 'Mínimo']
     colunas_padronizar = ['Volume', 'Quantidade']
     coluna_target = 'Fechamento'
 
-    # Inicializa armazenamento de resultados
     X_sequencias = []
     y_sequencias = []
     scalers_por_dia = {}
 
-    # Itera sobre pregões
     for idx in range(len(dias_validos) - 1):
         data_dia = dias_validos[idx]
         data_proximo = dias_validos[idx + 1]
@@ -51,7 +43,6 @@ def normalizar_padronizar_dados(path_dados_limpos, path_scalers, path_normalizad
         df_dia = df[df['Data'].dt.date == data_dia].copy()
         df_proximo = df[df['Data'].dt.date == data_proximo].copy()
 
-        # Cria scalers e normaliza o dia atual
         scaler_preco = MinMaxScaler()
         scaler_target = MinMaxScaler()
         scaler_volume = StandardScaler()
@@ -60,15 +51,12 @@ def normalizar_padronizar_dados(path_dados_limpos, path_scalers, path_normalizad
         df_dia[colunas_padronizar] = scaler_volume.fit_transform(df_dia[colunas_padronizar])
         df_dia[[coluna_target]] = scaler_target.fit_transform(df_dia[[coluna_target]])
 
-        # Normaliza target do próximo pregão
         scaler_target_y = MinMaxScaler()
         df_proximo_y = scaler_target_y.fit_transform(df_proximo[[coluna_target]])
 
-        # Salva sequência de entrada e target
         X_sequencias.append(df_dia.drop(columns=colunas_temporais).values)
         y_sequencias.append(df_proximo_y.flatten())
 
-        # Guarda scalers por data
         scalers_por_dia[str(data_dia)] = {
             'scaler_preco': scaler_preco,
             'scaler_volume': scaler_volume,
@@ -76,13 +64,11 @@ def normalizar_padronizar_dados(path_dados_limpos, path_scalers, path_normalizad
             'scaler_target_y': scaler_target_y
         }
 
-    # Converte para arrays numpy
     X = np.array(X_sequencias)
     y = np.array(y_sequencias)
 
     print(f"\n[INFO] Formato final das sequências: X={X.shape}, y={y.shape}")
 
-    # Salva dados e scalers
     os.makedirs(path_normalizados, exist_ok=True)
     os.makedirs(path_scalers, exist_ok=True)
     np.save(os.path.join(path_normalizados, 'X.npy'), X)
@@ -91,17 +77,32 @@ def normalizar_padronizar_dados(path_dados_limpos, path_scalers, path_normalizad
 
     return X, y, scalers_por_dia
 
-# Execução direta
+def dividir_e_salvar_dados(X, y, path_treino_val_teste, proporcao_val=0.15, proporcao_teste=0.15):
+    os.makedirs(path_treino_val_teste, exist_ok=True)
+
+    X_temp, X_teste, y_temp, y_teste = train_test_split(X, y, test_size=proporcao_teste, shuffle=False)
+    X_treino, X_val, y_treino, y_val = train_test_split(X_temp, y_temp, test_size=proporcao_val / (1 - proporcao_teste), shuffle=False)
+
+    np.save(os.path.join(path_treino_val_teste, 'X_treino.npy'), X_treino)
+    np.save(os.path.join(path_treino_val_teste, 'y_treino.npy'), y_treino)
+    np.save(os.path.join(path_treino_val_teste, 'X_val.npy'), X_val)
+    np.save(os.path.join(path_treino_val_teste, 'y_val.npy'), y_val)
+    np.save(os.path.join(path_treino_val_teste, 'X_teste.npy'), X_teste)
+    np.save(os.path.join(path_treino_val_teste, 'y_teste.npy'), y_teste)
+
+    print(f"\n[✓] Divisão concluída: {X_treino.shape[0]} treino, {X_val.shape[0]} validação, {X_teste.shape[0]} teste")
 
 def preparar_dados_lstm(ticker, intervalo, versao_dados, path_projeto):
     print(f"\n[INICIO] Preparando dados LSTM para {ticker} - Versao: {versao_dados}")
 
-    path_dados_limpos = os.path.join(path_projeto, f"data/clean/{ticker}/{intervalo}_{versao_dados}.csv")
+    path_dados_limpos = os.path.join(path_projeto, f"data/cleaned/{ticker}/{intervalo}/dados_limpos_{ticker}_{intervalo}.csv")
     path_dados_preparados = os.path.join(path_projeto, f"data/prepared/{ticker}/{intervalo}_{versao_dados}")
     path_normalizados = os.path.join(path_dados_preparados, 'normalizados')
     path_scalers = os.path.join(path_dados_preparados, 'scalers')
+    path_treino_val_teste = os.path.join(path_dados_preparados, 'treino_teste_val')
 
     X, y, scalers_por_dia = normalizar_padronizar_dados(path_dados_limpos, path_scalers, path_normalizados)
+    dividir_e_salvar_dados(X, y, path_treino_val_teste)
 
     print("[✓] Preparação dos dados concluída.")
 
