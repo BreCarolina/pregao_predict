@@ -1,3 +1,4 @@
+
 #@title Preparar dados LSTM - Versão 02
 
 '''
@@ -13,8 +14,16 @@ from sklearn.model_selection import train_test_split
 
 def normalizar_padronizar_dados(path_dados_limpos, path_scalers, path_normalizados):
     df = pd.read_csv(path_dados_limpos)
-    df['Data'] = pd.to_datetime(df['Data'])
+    print(f"\n[INFO] Dados carregados de: {path_dados_limpos}")
+    print(f"[INFO] Formato inicial: {df.shape}")
+    print(f"[INFO] Amostra dos dados:\n{df.head()}")
 
+    # Remove coluna desnecessária
+    if 'Ativo' in df.columns:
+        df = df.drop(columns=['Ativo'])
+        print("\n[INFO] Coluna 'Ativo' removida.")
+
+    df['Data'] = pd.to_datetime(df['Data'])
     df = df[(df['Hora'] >= '10:10:00') & (df['Hora'] <= '16:45:00')]
 
     contagem_por_dia = df.groupby(df['Data'].dt.date).size()
@@ -43,10 +52,6 @@ def normalizar_padronizar_dados(path_dados_limpos, path_scalers, path_normalizad
         df_dia = df[df['Data'].dt.date == data_dia].copy()
         df_proximo = df[df['Data'].dt.date == data_proximo].copy()
 
-        if df_dia.shape[0] != 80 or df_proximo.shape[0] != 80:
-            print(f"[AVISO] Ignorando dias com quantidade de candles diferente de 80: {data_dia}, {data_proximo}")
-            continue
-
         scaler_preco = MinMaxScaler()
         scaler_target = MinMaxScaler()
         scaler_volume = StandardScaler()
@@ -58,17 +63,8 @@ def normalizar_padronizar_dados(path_dados_limpos, path_scalers, path_normalizad
         scaler_target_y = MinMaxScaler()
         df_proximo_y = scaler_target_y.fit_transform(df_proximo[[coluna_target]])
 
-        X_dia = df_dia.drop(columns=colunas_temporais).values
-        y_dia = df_proximo_y.flatten()
-
-        if X_dia.shape != (80, X_dia.shape[1]) or y_dia.shape != (80,):
-            print(f"[ERRO] Formato inesperado ao processar {data_dia}. Ignorando.")
-            continue
-
-        print(f"[OK] Pregão {data_dia} -> {data_proximo} | X: {X_dia.shape}, y: {y_dia.shape}")
-
-        X_sequencias.append(X_dia)
-        y_sequencias.append(y_dia)
+        X_sequencias.append(df_dia.drop(columns=colunas_temporais).values)
+        y_sequencias.append(df_proximo_y.flatten())
 
         scalers_por_dia[str(data_dia)] = {
             'scaler_preco': scaler_preco,
@@ -77,8 +73,8 @@ def normalizar_padronizar_dados(path_dados_limpos, path_scalers, path_normalizad
             'scaler_target_y': scaler_target_y
         }
 
-    X = np.array(X_sequencias)
-    y = np.array(y_sequencias)
+    X = np.array(X_sequencias).astype(np.float32)
+    y = np.array(y_sequencias).astype(np.float32)
 
     print(f"\n[INFO] Formato final das sequências: X={X.shape}, y={y.shape}")
 
@@ -103,10 +99,7 @@ def dividir_e_salvar_dados(X, y, path_treino_val_teste, proporcao_val=0.15, prop
     np.save(os.path.join(path_treino_val_teste, 'X_teste.npy'), X_teste)
     np.save(os.path.join(path_treino_val_teste, 'y_teste.npy'), y_teste)
 
-    print(f"\n[✓] Divisão concluída:")
-    print(f"  -> Treino:      {X_treino.shape[0]} sequências")
-    print(f"  -> Validação:   {X_val.shape[0]} sequências")
-    print(f"  -> Teste:       {X_teste.shape[0]} sequências")
+    print(f"\n[✓] Divisão concluída: {X_treino.shape[0]} treino, {X_val.shape[0]} validação, {X_teste.shape[0]} teste")
 
 def preparar_dados_lstm(ticker, intervalo, versao_dados, path_projeto):
     print(f"\n[INICIO] Preparando dados LSTM para {ticker} - Versao: {versao_dados}")
