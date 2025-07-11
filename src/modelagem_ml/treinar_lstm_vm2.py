@@ -1,8 +1,7 @@
 
-#@title Treinar modelo LSTM Versao 2 (Normalização dos dados por pregao)
-
+#@title Treinar modelo LSTM Versao 2 (Normalização dos dados por pregão)
 """
-Treinamento do modelo LSTM para previsão de preços por pregão (versão 2)
+Treinamento do modelo LSTM (versão 2)
 
 Este script realiza o treinamento de um modelo LSTM para prever
 os preços de fechamento do próximo pregão, utilizando dados normalizados
@@ -16,16 +15,6 @@ Funcionalidades principais:
 - Avaliação e cálculo de métricas (MAE, RMSE, R²) com dados desnormalizados
 - Plotagem das previsões versus valores reais para até 6 pregões
 - Salvamento do modelo treinado e parâmetros de treinamento
-
-Dependências:
-- TensorFlow/Keras
-- sklearn
-- numpy, pandas, matplotlib
-- joblib
-
-Autor: Carol
-Data: 2025
-
 """
 
 import os
@@ -46,24 +35,17 @@ from tensorflow.keras.losses import Huber
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 import joblib
 
-
+# Gerar horários para o gráfico
 def gerar_horarios_pregao_espacado(intervalo_min=5):
-    """
-    Gera uma série temporal fixa para o horário do pregão,
-    do intervalo de 10:10 até 16:45 com passos de intervalo_min.
-    """
     base = datetime(2000, 1, 1, 10, 10)
     return pd.date_range(start=base, end=base.replace(hour=16, minute=45), freq=f'{intervalo_min}min')
 
-
+# Plotar as predições de alguns pregões
 def plotar_predicoes_por_dia(y_true_desnormalizado, y_pred_desnormalizado, datas, horarios_base, titulo='Previsões vs Real', figsize=(32, 7)):
-    """
-    Plota gráficos comparando valores reais e previstos para até 6 pregões.
-    """
-    num_dias = min(6, y_true_desnormalizado.shape[0])  # Limita a 6 pregões
+    num_dias = min(6, y_true_desnormalizado.shape[0]) #
     for i in range(num_dias):
         fig, ax = plt.subplots(figsize=figsize)
-        horarios_dia = [h + pd.Timedelta(days=i) for h in horarios_base]  # Ajusta horários por dia
+        horarios_dia = [h + pd.Timedelta(days=i) for h in horarios_base]
 
         ax.set_ylim(min(y_true_desnormalizado[i]) - 1, max(y_true_desnormalizado[i]) + 1)
 
@@ -89,26 +71,13 @@ def plotar_predicoes_por_dia(y_true_desnormalizado, y_pred_desnormalizado, datas
         fig.suptitle(titulo, fontsize=16, fontweight='bold')
         plt.show()
 
-
 def treinar_lstm(ticker, intervalo, versao_modelo, versao_dados, path_projeto, parametros: dict):
-    """
-    Função principal para treinamento do modelo LSTM.
-    
-    Parâmetros:
-    - ticker: código da ação (ex: 'LREN3')
-    - intervalo: intervalo dos candles (ex: '5m')
-    - versao_modelo: string com a versão do modelo (ex: 'vm2')
-    - versao_dados: string com a versão dos dados preparados (ex: 'v2')
-    - path_projeto: caminho raiz do projeto
-    - parametros: dicionário com parâmetros do modelo e treinamento
-    
-    Retorna:
-    - modelo treinado
-    - dicionário com parâmetros e métricas do treinamento
-    """
-
     print("\n--- Iniciando treinamento do modelo LSTM ---")
+    print(f"[INFO] Versão do modelo: {versao_modelo}")
+    print(f"[INFO] Versão dos dados: {versao_dados}")
+    print(f"[INFO] Parâmetros de treinamento: {parametros}")
 
+    # Caminhos
     path_modelo_pasta = os.path.join(path_projeto, f'models/LSTM/{ticker}/modelo_lstm_{versao_modelo}')
     path_modelo = os.path.join(path_modelo_pasta, f'modelo_lstm_{versao_modelo}.h5')
     path_parametros_modelo = os.path.join(path_modelo_pasta, f'parametros_{versao_modelo}.pkl')
@@ -118,12 +87,20 @@ def treinar_lstm(ticker, intervalo, versao_modelo, versao_dados, path_projeto, p
     os.makedirs(path_modelo_pasta, exist_ok=True)
     print(f"[INFO] Pasta do modelo criada/verificada em: {path_modelo_pasta}")
 
+    # Ler dados de treino e validação
     try:
-        X_treino = np.load(os.path.join(path_treino_teste_val, 'X_treino.npy'))
-        y_treino = np.load(os.path.join(path_treino_teste_val, 'y_treino.npy'))
-        X_val = np.load(os.path.join(path_treino_teste_val, 'X_val.npy'))
-        y_val = np.load(os.path.join(path_treino_teste_val, 'y_val.npy'))
-        print(f"[INFO] Dados carregados com sucesso de: {path_treino_teste_val}")
+        X_treino = np.load(os.path.join(path_treino_teste_val, 'X_treino.npy'), allow_pickle=True)
+        y_treino = np.load(os.path.join(path_treino_teste_val, 'y_treino.npy'), allow_pickle=True)
+        X_val = np.load(os.path.join(path_treino_teste_val, 'X_val.npy'), allow_pickle=True)
+        y_val = np.load(os.path.join(path_treino_teste_val, 'y_val.npy'), allow_pickle=True)
+
+        # Conversão explícita para tipo float32 (razao?)
+        X_treino = np.array(X_treino).astype(np.float32)
+        y_treino = np.array(y_treino).astype(np.float32)
+        X_val = np.array(X_val).astype(np.float32)
+        y_val = np.array(y_val).astype(np.float32)
+
+        print(f"[INFO] Dados carregados e convertidos com sucesso de: {path_treino_teste_val}")
     except Exception as e:
         print(f"[ERRO] Falha ao carregar dados: {e}")
         return None, None
@@ -171,11 +148,9 @@ def treinar_lstm(ticker, intervalo, versao_modelo, versao_dados, path_projeto, p
 
     y_pred_val = modelo.predict(X_val, verbose=0)
 
-    # Desnormaliza as previsões e valores reais por pregão usando os scalers específicos
-    y_val_desnormalizado = []
-    y_pred_desnormalizado = []
+    y_val_desnormalizado, y_pred_desnormalizado = [], []
     for i in range(len(y_val)):
-        key = list(scalers_por_pregao.keys())[i+1]  # target é o pregão seguinte
+        key = list(scalers_por_pregao.keys())[i + 1]  # target é o próximo pregão
         scaler = scalers_por_pregao[key]['scaler_target_y']
         y_val_desnormalizado.append(scaler.inverse_transform(y_val[i].reshape(-1, 1)).flatten())
         y_pred_desnormalizado.append(scaler.inverse_transform(y_pred_val[i].reshape(-1, 1)).flatten())
@@ -209,11 +184,7 @@ def treinar_lstm(ticker, intervalo, versao_modelo, versao_dados, path_projeto, p
         'epocas_executadas': len(historico.history['loss']),
         'loss_final_treino': historico.history['loss'][-1],
         'loss_final_val': historico.history['val_loss'][-1] if 'val_loss' in historico.history else None,
-        'layers': [layer['class_name'] for layer in config_modelo['layers']],
-        'mae_val': mae,
-        'rmse_val': rmse,
-        'r2_val': r2,
-        'parametros_entrada': parametros
+        'layers': [layer['class_name'] for layer in config_modelo['layers']]
     }
 
     with open(path_parametros_modelo, 'wb') as f:
@@ -222,12 +193,11 @@ def treinar_lstm(ticker, intervalo, versao_modelo, versao_dados, path_projeto, p
     print(f"[✓] Parâmetros de treinamento salvos em: {path_parametros_modelo}")
     return modelo, parametros_modelo
 
-
 if __name__ == '__main__':
     parametros = {
         "dias_entrada": 1,
         "observacoes_por_dia": 80,
-        "num_features_por_observacao": 7,  # Ajuste para refletir as features reais (ex: preço e dummy)
+        "num_features_por_observacao": 7,
         "unidades_lstm_camada1": 256,
         "unidades_lstm_camada2": 128,
         "taxa_dropout": 0.011,
