@@ -1,4 +1,8 @@
 
+# Experimento de LSTM com treinamento registrado e preparação dos dados reproduzida. Precisa revisar a avaliação antes de publicar.
+
+-----
+
 
 # Pipeline de Processamento de Dados de Ativos da B3
 
